@@ -4,8 +4,7 @@ import numpy as np
 import pickle
 from tensorflow.keras.models import load_model
 
-
-# Load model and encoders/scaler once
+@st.cache_resource(show_spinner=False)
 def load_all():
     model = load_model('model.h5')
     with open('label_encoder_cname.pkl', 'rb') as f:
@@ -18,10 +17,8 @@ def load_all():
 
 model, label_encoder_cname, onehot_encoder_type, scaler = load_all()
 
-# App Title
 st.title("📊 Company Questionnaire - Predict Average Score")
 
-# Form-based input
 with st.form("prediction_form"):
     st.markdown("### 🏢 Company Information")
     company_name = st.text_input("Company Name", value="Ultramatics1")
@@ -60,14 +57,14 @@ if submitted:
         # Predict
         prediction = model.predict(input_scaled)
         predicted_class = np.argmax(prediction[0])
-        predicted_average = predicted_class + 1  # Convert class index (0–9) to score (1–10)
+        predicted_average = predicted_class + 1  # Because classes 0-9 map to scores 1-10
 
         st.success(f"🎯 Predicted Average Score: **{predicted_average}**")
 
-        # Visualize prediction probabilities
+        # Visualization of prediction confidence
         st.markdown("### 📊 Prediction Confidence")
         probabilities = prediction[0]
-        class_labels = [f"{i+1}" for i in range(len(probabilities))]
+        class_labels = [str(i + 1) for i in range(len(probabilities))]
         prob_df = pd.DataFrame({
             'Predicted Score': class_labels,
             'Probability': probabilities
