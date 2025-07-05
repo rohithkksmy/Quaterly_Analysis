@@ -38,31 +38,56 @@ with st.form("prediction_form"):
 
 if submitted:
     try:
-        # Prepare input DataFrame
+        # Prepare input DataFrame with company name and question answers
         input_dict = {"Company Name": [company_name]}
         input_dict.update({k: [v] for k, v in q_cols.items()})
         input_df = pd.DataFrame(input_dict)
+
+        st.write("Input df BEFORE encoding Type:")
+        st.write(input_df)
 
         # One-hot encode Type
         type_encoded = onehot_encoder_type.transform([[type_val]])
         type_encoded_df = pd.DataFrame(type_encoded, columns=onehot_encoder_type.get_feature_names_out(['Type']))
 
-        # Reset indices to align before concat
+        # Reset indices before concatenation
         input_df = input_df.reset_index(drop=True)
         type_encoded_df = type_encoded_df.reset_index(drop=True)
 
+        # Concatenate input data with one-hot encoded Type columns
         input_df = pd.concat([input_df, type_encoded_df], axis=1)
+
+        st.write("Input df AFTER concatenating one-hot encoded Type:")
+        st.write(input_df)
 
         # Label encode Company Name
         input_df['Company Name'] = label_encoder_cname.transform(input_df['Company Name'])
 
+        st.write("Input df AFTER label encoding Company Name:")
+        st.write(input_df)
+
+        # Check scaler expected columns order and reorder input_df accordingly
+        if hasattr(scaler, 'feature_names_in_'):
+            expected_cols = scaler.feature_names_in_
+            st.write("Scaler expects columns (in this order):")
+            st.write(expected_cols)
+            # Reorder input_df columns to match scaler expected order
+            input_df = input_df[expected_cols]
+        else:
+            st.warning("Scaler does not have feature_names_in_. Make sure input columns are in correct order.")
+
+        st.write("Final input_df before scaling:")
+        st.write(input_df)
+
         # Scale features
         input_scaled = scaler.transform(input_df)
+
+        st.write("Scaled input shape:", input_scaled.shape)
 
         # Predict
         prediction = model.predict(input_scaled)
         predicted_class = np.argmax(prediction[0])
-        predicted_average = predicted_class + 1  # Because classes 0-9 map to scores 1-10
+        predicted_average = predicted_class + 1  # Classes 0-9 map to scores 1-10
 
         st.success(f"🎯 Predicted Average Score: **{predicted_average}**")
 
