@@ -1,10 +1,12 @@
-import streamlit as st
 import sys
+st.write("Python version:", sys.version)
+
+import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
 from tensorflow.keras.models import load_model
-st.write("Python version:", sys.version)
+
 
 # Load model and encoders/scaler once
 @st.cache(allow_output_mutation=True)
