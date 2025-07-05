@@ -6,7 +6,7 @@ from tensorflow.keras.models import load_model
 
 
 # Load model and encoders/scaler once
-@st.cache(allow_output_mutation=True)
+@st.cache_data(allow_output_mutation=True)
 def load_all():
     model = load_model('model.h5')
     with open('label_encoder_cname.pkl', 'rb') as f:
