@@ -46,6 +46,11 @@ if submitted:
         # One-hot encode Type
         type_encoded = onehot_encoder_type.transform([[type_val]])
         type_encoded_df = pd.DataFrame(type_encoded, columns=onehot_encoder_type.get_feature_names_out(['Type']))
+
+        # Reset indices to align before concat
+        input_df = input_df.reset_index(drop=True)
+        type_encoded_df = type_encoded_df.reset_index(drop=True)
+
         input_df = pd.concat([input_df, type_encoded_df], axis=1)
 
         # Label encode Company Name
