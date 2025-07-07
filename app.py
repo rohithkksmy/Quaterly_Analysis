@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
+import requests
 from tensorflow.keras.models import load_model
 
 @st.cache_resource(show_spinner=False)
@@ -15,9 +16,36 @@ def load_all():
         scaler = pickle.load(f)
     return model, label_encoder_cname, onehot_encoder_type, scaler
 
+def fetch_company_rating(company_name: str) -> float:
+    """
+    Placeholder for fetching real-time company rating from an API.
+    Replace this with your actual API call.
+    """
+    try:
+        # Simulate an API call — replace with your real endpoint
+        # response = requests.get(f"https://api.example.com/company_rating?name={company_name}")
+        # response.raise_for_status()
+        # data = response.json()
+        # return float(data.get('rating', 5.0))
+        
+        # For demonstration, generate a dummy rating (e.g., 1 to 10)
+        import random
+        return random.uniform(3, 9)  # random rating between 3 and 9
+    except Exception as e:
+        st.warning(f"Failed to fetch live rating: {e}")
+        return 5.0  # fallback rating
+
+def classify_score(score: int) -> str:
+    if score <= 3:
+        return "Pioneering"
+    elif score <= 7:
+        return "Advanced"
+    else:
+        return "Fully Functional"
+
 model, label_encoder_cname, onehot_encoder_type, scaler = load_all()
 
-st.title("📊 Company Questionnaire - Predict Average Score")
+st.title("📊 Company Questionnaire - Predict Average Score with Real-Time Data")
 
 with st.form("prediction_form"):
     st.markdown("### 🏢 Company Information")
@@ -43,63 +71,43 @@ if submitted:
         input_dict.update({k: [v] for k, v in q_cols.items()})
         input_df = pd.DataFrame(input_dict)
 
-        st.write("Input df BEFORE encoding Type:")
-        st.write(input_df)
+        # Add live company rating fetched from API
+        live_rating = fetch_company_rating(company_name)
+        input_df['Live Company Rating'] = live_rating
 
-        # One-hot encode Type and convert sparse matrix to dense
+        # One-hot encode Type
         type_encoded = onehot_encoder_type.transform([[type_val]])
         if hasattr(type_encoded, "toarray"):
             type_encoded = type_encoded.toarray()
-
         type_encoded_df = pd.DataFrame(type_encoded, columns=onehot_encoder_type.get_feature_names_out(['Type']))
 
-        # Reset indices before concatenation
         input_df = input_df.reset_index(drop=True)
         type_encoded_df = type_encoded_df.reset_index(drop=True)
 
-        # Concatenate input data with one-hot encoded Type columns
         input_df = pd.concat([input_df, type_encoded_df], axis=1)
-
-        st.write("Input df AFTER concatenating one-hot encoded Type:")
-        st.write(input_df)
 
         # Label encode Company Name
         input_df['Company Name'] = label_encoder_cname.transform(input_df['Company Name'])
 
-        st.write("Input df AFTER label encoding Company Name:")
-        st.write(input_df)
-
-        # Reorder columns to match scaler expected order
+        # Handle missing columns expected by scaler
         if hasattr(scaler, 'feature_names_in_'):
             expected_cols = scaler.feature_names_in_
-            st.write("Scaler expects columns (in this order):")
-            st.write(expected_cols)
-
-            # Add any missing columns expected by scaler with default 0
-            missing_cols = [col for col in expected_cols if col not in input_df.columns]
-            for col in missing_cols:
-                input_df[col] = 0
-            st.write(f"Added missing columns with default 0: {missing_cols}")
-
-            # Reorder columns to scaler's expected order
+            for col in expected_cols:
+                if col not in input_df.columns:
+                    input_df[col] = 0
             input_df = input_df[expected_cols]
-        else:
-            st.warning("Scaler does not have feature_names_in_. Make sure input columns are in correct order.")
-
-        st.write("Final input_df before scaling:")
-        st.write(input_df)
 
         # Scale features
         input_scaled = scaler.transform(input_df)
 
-        st.write("Scaled input shape:", input_scaled.shape)
-
-        # Predict and show only average
+        # Predict average score
         prediction = model.predict(input_scaled)
         predicted_class = np.argmax(prediction[0])
-        predicted_average = predicted_class + 1  # Classes 0-9 map to scores 1-10
+        predicted_average = predicted_class + 1  # map 0-9 to 1-10 scale
 
+        category = classify_score(predicted_average)
         st.success(f"🎯 Predicted Average Score: **{predicted_average}**")
+        st.info(f"Classification: **{category}**")
 
     except ValueError as ve:
         st.error(f"⚠️ Input Error: {ve}")
