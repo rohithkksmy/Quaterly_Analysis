@@ -48,7 +48,7 @@ if submitted:
 
         # One-hot encode Type and convert sparse matrix to dense
         type_encoded = onehot_encoder_type.transform([[type_val]])
-        if hasattr(type_encoded, "toarray"):  # Check for sparse matrix
+        if hasattr(type_encoded, "toarray"):
             type_encoded = type_encoded.toarray()
 
         type_encoded_df = pd.DataFrame(type_encoded, columns=onehot_encoder_type.get_feature_names_out(['Type']))
@@ -74,6 +74,14 @@ if submitted:
             expected_cols = scaler.feature_names_in_
             st.write("Scaler expects columns (in this order):")
             st.write(expected_cols)
+
+            # Add any missing columns expected by scaler with default 0
+            missing_cols = [col for col in expected_cols if col not in input_df.columns]
+            for col in missing_cols:
+                input_df[col] = 0
+            st.write(f"Added missing columns with default 0: {missing_cols}")
+
+            # Reorder columns to scaler's expected order
             input_df = input_df[expected_cols]
         else:
             st.warning("Scaler does not have feature_names_in_. Make sure input columns are in correct order.")
