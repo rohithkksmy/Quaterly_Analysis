@@ -46,8 +46,11 @@ if submitted:
         st.write("Input df BEFORE encoding Type:")
         st.write(input_df)
 
-        # One-hot encode Type
+        # One-hot encode Type and convert sparse matrix to dense
         type_encoded = onehot_encoder_type.transform([[type_val]])
+        if hasattr(type_encoded, "toarray"):  # Check for sparse matrix
+            type_encoded = type_encoded.toarray()
+
         type_encoded_df = pd.DataFrame(type_encoded, columns=onehot_encoder_type.get_feature_names_out(['Type']))
 
         # Reset indices before concatenation
@@ -66,12 +69,11 @@ if submitted:
         st.write("Input df AFTER label encoding Company Name:")
         st.write(input_df)
 
-        # Check scaler expected columns order and reorder input_df accordingly
+        # Reorder columns to match scaler expected order
         if hasattr(scaler, 'feature_names_in_'):
             expected_cols = scaler.feature_names_in_
             st.write("Scaler expects columns (in this order):")
             st.write(expected_cols)
-            # Reorder input_df columns to match scaler expected order
             input_df = input_df[expected_cols]
         else:
             st.warning("Scaler does not have feature_names_in_. Make sure input columns are in correct order.")
@@ -84,23 +86,12 @@ if submitted:
 
         st.write("Scaled input shape:", input_scaled.shape)
 
-        # Predict
+        # Predict and show only average
         prediction = model.predict(input_scaled)
         predicted_class = np.argmax(prediction[0])
         predicted_average = predicted_class + 1  # Classes 0-9 map to scores 1-10
 
         st.success(f"🎯 Predicted Average Score: **{predicted_average}**")
-
-        # Visualization of prediction confidence
-        st.markdown("### 📊 Prediction Confidence")
-        probabilities = prediction[0]
-        class_labels = [str(i + 1) for i in range(len(probabilities))]
-        prob_df = pd.DataFrame({
-            'Predicted Score': class_labels,
-            'Probability': probabilities
-        })
-
-        st.bar_chart(prob_df.set_index('Predicted Score'))
 
     except ValueError as ve:
         st.error(f"⚠️ Input Error: {ve}")
