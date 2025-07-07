@@ -5,7 +5,6 @@ import pickle
 import requests
 from tensorflow.keras.models import load_model
 
-@st.cache_resource(show_spinner=False)
 def load_all():
     model = load_model('model.h5')
     with open('label_encoder_cname.pkl', 'rb') as f:
@@ -16,24 +15,14 @@ def load_all():
         scaler = pickle.load(f)
     return model, label_encoder_cname, onehot_encoder_type, scaler
 
+def load_companies():
+    df = pd.read_csv('c1l.csv')  # your file with company names
+    return df['Company Name'].sort_values().unique().tolist()
+
 def fetch_company_rating(company_name: str) -> float:
-    """
-    Placeholder for fetching real-time company rating from an API.
-    Replace this with your actual API call.
-    """
-    try:
-        # Simulate an API call — replace with your real endpoint
-        # response = requests.get(f"https://api.example.com/company_rating?name={company_name}")
-        # response.raise_for_status()
-        # data = response.json()
-        # return float(data.get('rating', 5.0))
-        
-        # For demonstration, generate a dummy rating (e.g., 1 to 10)
-        import random
-        return random.uniform(3, 9)  # random rating between 3 and 9
-    except Exception as e:
-        st.warning(f"Failed to fetch live rating: {e}")
-        return 5.0  # fallback rating
+    # Simulated API call, replace with your real one
+    import random
+    return random.uniform(3, 9)
 
 def classify_score(score: int) -> str:
     if score <= 3:
@@ -43,13 +32,36 @@ def classify_score(score: int) -> str:
     else:
         return "Fully Functional"
 
+def improvement_suggestions(category: str) -> str:
+    suggestions = {
+        "Pioneering": (
+            "🚀 Your company is at the pioneering stage. "
+            "Consider focusing on building foundational processes, "
+            "strengthening team collaboration, and investing in training."
+        ),
+        "Advanced": (
+            "⚙️ Your company is advanced. To reach full functionality, "
+            "optimize workflows, adopt automation where possible, "
+            "and improve data-driven decision making."
+        ),
+        "Fully Functional": (
+            "🌟 Your company is fully functional. Maintain excellence by "
+            "continuously innovating, encouraging employee growth, "
+            "and expanding strategic initiatives."
+        )
+    }
+    return suggestions.get(category, "No suggestions available.")
+
 model, label_encoder_cname, onehot_encoder_type, scaler = load_all()
+company_list = load_companies()
 
 st.title("📊 Company Questionnaire - Predict Average Score with Real-Time Data")
 
 with st.form("prediction_form"):
-    st.markdown("### 🏢 Company Information")
-    company_name = st.text_input("Company Name", value="Ultramatics1")
+    st.markdown("### 🏢 Select Company")
+    company_name = st.selectbox("Company Name", options=company_list)
+
+    st.markdown("### 🏢 Company Type")
     type_val = st.selectbox("Type", options=onehot_encoder_type.categories_[0])
 
     st.markdown("### ✅ Answer Questions (Q1 to Q10)")
@@ -66,16 +78,13 @@ with st.form("prediction_form"):
 
 if submitted:
     try:
-        # Prepare input DataFrame with company name and question answers
         input_dict = {"Company Name": [company_name]}
         input_dict.update({k: [v] for k, v in q_cols.items()})
         input_df = pd.DataFrame(input_dict)
 
-        # Add live company rating fetched from API
         live_rating = fetch_company_rating(company_name)
         input_df['Live Company Rating'] = live_rating
 
-        # One-hot encode Type
         type_encoded = onehot_encoder_type.transform([[type_val]])
         if hasattr(type_encoded, "toarray"):
             type_encoded = type_encoded.toarray()
@@ -86,10 +95,8 @@ if submitted:
 
         input_df = pd.concat([input_df, type_encoded_df], axis=1)
 
-        # Label encode Company Name
         input_df['Company Name'] = label_encoder_cname.transform(input_df['Company Name'])
 
-        # Handle missing columns expected by scaler
         if hasattr(scaler, 'feature_names_in_'):
             expected_cols = scaler.feature_names_in_
             for col in expected_cols:
@@ -97,19 +104,18 @@ if submitted:
                     input_df[col] = 0
             input_df = input_df[expected_cols]
 
-        # Scale features
         input_scaled = scaler.transform(input_df)
 
-        # Predict average score
         prediction = model.predict(input_scaled)
         predicted_class = np.argmax(prediction[0])
-        predicted_average = predicted_class + 1  # map 0-9 to 1-10 scale
+        predicted_average = predicted_class + 1
 
         category = classify_score(predicted_average)
         st.success(f"🎯 Predicted Average Score: **{predicted_average}**")
         st.info(f"Classification: **{category}**")
 
-    except ValueError as ve:
-        st.error(f"⚠️ Input Error: {ve}")
+        st.markdown("### 💡 Suggestions to Improve")
+        st.info(improvement_suggestions(category))
+
     except Exception as e:
         st.error(f"❌ Unexpected Error: {e}")
